@@ -1,0 +1,5 @@
+﻿  main.cpp
+C:\Users\eduof\Desktop\SistemaSolar\P3_33\main.cpp(39,2): warning C4091: 'typedef ': se ha omitido a la izquierda de 'planeta' cuando no hay ninguna variable declarada
+C:\Users\eduof\Desktop\SistemaSolar\P3_33\main.cpp(164,67): warning C4244: '+=': conversión de 'double' a 'float'; posible pérdida de datos
+C:\Users\eduof\Desktop\SistemaSolar\P3_33\main.cpp(169,63): warning C4244: '+=': conversión de 'double' a 'float'; posible pérdida de datos
+  P3_33.vcxproj -> C:\Users\eduof\Desktop\SistemaSolar\Debug\P3_33.exe
