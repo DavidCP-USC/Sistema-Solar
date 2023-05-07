@@ -14,7 +14,6 @@
 // Liberia para las texturas
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
-#include "ISS.h"
 
 #define GL_PI 3.14f
 #define RADIO .5
@@ -38,7 +37,7 @@ typedef struct planeta {
 	float velocidadRot;
 	float anguloRot;
 	float tam;
-	GLuint listaRender;
+	GLuint listaRender[3];
 	GLuint listaOrb;
 	int numSatelites;
 	planeta* satelites;
@@ -51,11 +50,10 @@ double lasttime = glfwGetTime();
 double currentTime;
 double lapsoTime;
 int nbFrames = 0, bandera = 1, camara = 1;
-bool solEncendido = true;
 
 
 // unsigned int VBO, VAO, EBO;
-GLuint* VAOEsfera, VAOEjes, VAOOrbita[num_planetas], VAOISS;
+GLuint* VAOEsfera, VAOEjes, VAOOrbita[num_planetas], VAOCuadrado, VAOCubo;
 
 void CargaTexturas(const char* nombre, int numero) {
 	glGenTextures(1, &textura[numero]);
@@ -153,37 +151,6 @@ void dibujaEsfera(GLuint* VAOEsfera) {
 	glDeleteBuffers(1, &VBO);
 }
 
-void dibujarISS(GLuint* VAOISS){
-	unsigned int VBO;
-	//Generamos VAO
-	glGenVertexArrays(1, VAOISS);
-	//Generamos VBO
-	glGenBuffers(1, &VBO);
-
-	//Hacemos set up del VBO
-	glBindVertexArray(*VAOISS);
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	//Cogemos los vertices de esfera.h
-	glBufferData(GL_ARRAY_BUFFER, sizeof(verticesISS), verticesISS, GL_STATIC_DRAW);
-
-	//Vertices
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-	glEnableVertexAttribArray(0);
-
-	//Normales
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
-	glEnableVertexAttribArray(1);
-
-	//Texturas
-	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-	glEnableVertexAttribArray(2);
-
-	//Desvinculamos los VAO y VBO
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindVertexArray(0);
-	glDeleteBuffers(1, &VBO);
-}
-
 void dibujarCuerpoCeleste(int i) {
 	glm::mat4 transform; // Creamos matriz 4x4
 	transform = glm::mat4();// Ponemos la matriz de identidad
@@ -200,7 +167,7 @@ void dibujarCuerpoCeleste(int i) {
 	glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(transform));
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); // Hacemos que se dibujen los platenas solidos
 	// Finalmente dibujar la esfera
-	glBindVertexArray(cuerpoCeleste[i].listaRender);
+	glBindVertexArray(cuerpoCeleste[i].listaRender[0]);
 	glBindTexture(GL_TEXTURE_2D, textura[cuerpoCeleste[i].textura]);
 	glDrawArrays(GL_TRIANGLES, 0, 1080);
 
@@ -219,9 +186,15 @@ void dibujarCuerpoCeleste(int i) {
 			// Dibujamos el satelite
 			glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(transform));
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); // Hacemos que se dibujen los platenas solidos
-			glBindVertexArray(cuerpoCeleste[i].satelites[cont].listaRender);
+			glBindVertexArray(cuerpoCeleste[i].listaRender[0]);
 			glBindTexture(GL_TEXTURE_2D, textura[cuerpoCeleste[i].satelites[cont].textura]);
 			glDrawArrays(GL_TRIANGLES, 0, 1080);
+			// bind cube VAO
+			// glBindVertexArray(cuerpoCeleste[i].satelites[cont].listaRender[1]);
+			// draw cube
+			//glDrawArrays(GL_TRIANGLES, 0, 36);
+			// unbind VAO
+			// glBindVertexArray(0);
 		}
 	}
 }
@@ -299,11 +272,10 @@ void crearOrbita(planeta a, GLuint* VAOOrbita) {
 }
 
 void dibujarOrbita() {
-	
 	glm::mat4 transform; // Matriz de transformacion
 	unsigned int transformLoc = glGetUniformLocation(shaderProgram, "transform"); // Localizacion de la matriz de transformacion en el shader
 	for (int i = 1; i < num_planetas; i++) { // Empezamos en 1 para no dibujar la orbita del sol
-		transform = glm::mat4(); // Identidad
+		transform = glm::mat4();// Identidad
 		glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(transform)); // Enviamos la matriz de transformacion al shader
 		glBindVertexArray(cuerpoCeleste[i].listaOrb); // Vinculamos el VAO de la orbita
 		glDrawArrays(GL_LINE_LOOP, 0, 360); // Dibujamos la orbita
@@ -318,18 +290,93 @@ void dibujarOrbita() {
 	}
 }
 
+void dibujaCubo(GLuint* VAOCubo) {
+		// define vertex data
+		float vertices[] = {
+			// positions            // normals         // texture coords
+			-0.5f, -0.5f, -0.5f,    0.0f,  0.0f, -1.0f,   0.0f, 0.0f,
+			 0.5f, -0.5f, -0.5f,    0.0f,  0.0f, -1.0f,   1.0f, 0.0f,
+			 0.5f,  0.5f, -0.5f,    0.0f,  0.0f, -1.0f,   1.0f, 1.0f,
+			 0.5f,  0.5f, -0.5f,    0.0f,  0.0f, -1.0f,   1.0f, 1.0f,
+			-0.5f,  0.5f, -0.5f,    0.0f,  0.0f, -1.0f,   0.0f, 1.0f,
+			-0.5f, -0.5f, -0.5f,    0.0f,  0.0f, -1.0f,   0.0f, 0.0f,
+
+			-0.5f, -0.5f,  0.5f,    0.0f,  0.0f,  1.0f,   0.0f, 0.0f,
+			 0.5f, -0.5f,  0.5f,    0.0f,  0.0f,  1.0f,   1.0f, 0.0f,
+			 0.5f,  0.5f,  0.5f,    0.0f,  0.0f,  1.0f,   1.0f, 1.0f,
+			 0.5f,  0.5f,  0.5f,    0.0f,  0.0f,  1.0f,   1.0f, 1.0f,
+			-0.5f,  0.5f,  0.5f,    0.0f,  0.0f,  1.0f,   0.0f, 1.0f,
+			-0.5f, -0.5f,  0.5f,    0.0f,  0.0f,  1.0f,   0.0f, 0.0f,
+
+			-0.5f,  0.5f,  0.5f,   -1.0f,  0.0f,  0.0f,   1.0f, 0.0f,
+			-0.5f, 0.5f, 0.5f, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
+-0.5f, 0.5f, -0.5f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+-0.5f, -0.5f, -0.5f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+-0.5f, -0.5f, -0.5f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+-0.5f, -0.5f, 0.5f, -1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+-0.5f, 0.5f, 0.5f, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
+
+	 0.5f,  0.5f,  0.5f,    1.0f,  0.0f,  0.0f,   1.0f, 1.0f,
+	 0.5f,   -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,   1.0f, 0.0f,
+	 0.5f,  -0.5f, -0.5f,   1.0f,  0.0f,  0.0f,   0.0f, 0.0f,
+	 0.5f,  -0.5f, -0.5f,   1.0f,  0.0f,  0.0f,   0.0f, 0.0f,
+	 0.5f,   0.5f, -0.5f,   1.0f,  0.0f,  0.0f,   0.0f, 1.0f,
+	 0.5f,   0.5f,  0.5f,   1.0f,  0.0f,  0.0f,   1.0f, 1.0f,
+
+	-0.5f, -0.5f, -0.5f,    0.0f, -1.0f,  0.0f,   0.0f, 0.0f,
+	 0.5f, -0.5f, -0.5f,    0.0f, -1.0f,  0.0f,   1.0f, 0.0f,
+	 0.5f, -0.5f,  0.5f, 0.0f, -1.0f, 0.0f, 1.0f, 1.0f,
+0.5f, -0.5f, 0.5f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+-0.5f, -0.5f, 0.5f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f,
+	-0.5f,  0.5f, -0.5f,    0.0f,  1.0f,  0.0f,   0.0f, 1.0f,
+	 0.5f,  0.5f, -0.5f,    0.0f,  1.0f,  0.0f,   1.0f, 1.0f,
+	 0.5f,  0.5f,  0.5f,    0.0f,  1.0f,  0.0f,   1.0f, 0.0f,
+	 0.5f,  0.5f,  0.5f,    0.0f,  1.0f,  0.0f,   1.0f, 0.0f,
+	-0.5f,  0.5f,  0.5f,    0.0f,  1.0f,  0.0f,   0.0f, 0.0f,
+	-0.5f,  0.5f, -0.5f,    0.0f,  1.0f,  0.0f,   0.0f, 1.0f
+		};
+		// create VAO and VBO
+		unsigned int VBO;
+		glGenVertexArrays(1, VAOCubo);
+		glGenBuffers(1, &VBO);
+		// bind VAO and VBO
+		glBindVertexArray(*VAOCubo);
+		glBindBuffer(GL_ARRAY_BUFFER, VBO);
+		// fill VBO with data
+		glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+		// set vertex attribute pointers
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+		glEnableVertexAttribArray(0);
+		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+		glEnableVertexAttribArray(1);
+		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+		glEnableVertexAttribArray(2);
+		// unbind VBO and VAO
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+		glBindVertexArray(0);
+}
+
+void dibujaCuadrado(GLuint* VAOCuadrado) {
+
+}
+
+void anadirVAOsISS(int i, int j) {
+	dibujaCubo(&(cuerpoCeleste[i].satelites[j].listaRender[1]));
+	dibujaCuadrado(&(cuerpoCeleste[i].satelites[j].listaRender[2]));
+}
+
 void inicializarVAOS() {
 	// Inicializamos los VAOs de los cuerpos celestes
 	for (int i = 0; i < num_planetas; i++) {
-		dibujaEsfera(&(cuerpoCeleste[i].listaRender)); // Creamos el VAO del cuerpo celeste
+		dibujaEsfera(&(cuerpoCeleste[i].listaRender[0])); // Creamos el VAO del cuerpo celeste
 		crearOrbita(cuerpoCeleste[i], &(cuerpoCeleste[i].listaOrb)); // Creamos la orbita del cuerpo celeste
 		if (cuerpoCeleste[i].numSatelites > 0) { // Si tiene satelites, los dibujamos y creamos sus orbitas
 			for (int j = 0; j < cuerpoCeleste[i].numSatelites; j++) { 
-				dibujaEsfera(&(cuerpoCeleste[i].satelites[j].listaRender));
+				dibujaEsfera(&(cuerpoCeleste[i].satelites[j].listaRender[0]));
 				crearOrbita(cuerpoCeleste[i].satelites[j], &(cuerpoCeleste[i].satelites[j].listaOrb));
 				// Anadimos los VAOs necesarios para dibujar el ISS
 				if (i == 3 && j == 1) { // Si es el ISS
-					dibujarISS(&(cuerpoCeleste[i].satelites[j].listaRender));
+					anadirVAOsISS(i, j);
 				}
 			} 
 		}
@@ -413,41 +460,16 @@ void seleccionCamara() {
 	}
 }
 
-void myIluminacion() {
-	// LUZ AMBIENTE
-	// Color de los objetos
-	unsigned int colorLoc = glGetUniformLocation(shaderProgram, "objectColor");
-	glUniform3f(colorLoc, 1.0f, 1.0f, 1.0f);
-	// Color de la luz
-	unsigned int lightLoc = glGetUniformLocation(shaderProgram, "lightColor");
-	if (solEncendido == false) { // Quitamos la luz del sol
-		glUniform3f(lightLoc, 0.0, 0.0f, 0.0f);
-	}
-	else { // Ponemos la luz del sol
-		glUniform3f(lightLoc, 1.0, 1.0f, 1.0f);
-	}
-
-	// LUZ DIFUSA
-	// Posicion de la fuente de luz
-	unsigned int lightPosLoc = glGetUniformLocation(shaderProgram, "lightPos");
-	glUniform3f(lightPosLoc, 0.0f, 0.0f, 0.0f); // La ponemos en el Sol
-
-	// LUZ ESPECULAR
-	// Direccion a la que mira la fuente de luz
-	unsigned int viewPosLoc = glGetUniformLocation(shaderProgram, "viewPos");
-	glUniform3f(viewPosLoc, 0.0f, 0.0f, 0.0f);
-}
-
 void Display() {
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f); // Color de fondo
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Limpiamos buffer de color y de profundidad antes de dibujar
 	seleccionCamara();
-	myIluminacion();
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); // Hacemos que solo se dibuje la superficie
 	// Dibujamos cada uno de los planetas
 	for (int i = 0; i < num_planetas; i++) {
 		dibujarCuerpoCeleste(i);
 	}
+
 	if (bandera == -1) {
 		dibujarOrbita();
 	}
@@ -464,20 +486,20 @@ void openGlInit() {
 
 int main() {
 	// Damos valores al array de cuerpos celestes
-	cuerpoCeleste[0] = { 0.0f,0.0f,0.0f,10.0f,0.0f,75.0f, 0, 0, 0, NULL, 0}; // Sol
-	cuerpoCeleste[1] = { 150.0f,30.0f,0,50.0f,0.0f,25.0f, 0, 0, 0, NULL, 1 }; // Mercurio
-	cuerpoCeleste[2] = { 250.0f,25.0f,0.0f,30.0f,0.0f,30.0f, 0, 0, 0, NULL, 2 }; // Venus
-	cuerpoCeleste[3] = { 400.0f,20.0f,0.0f,10.0f,0.0f,40.0f, 0, 0, 2, NULL, 3 }; // Tierra
-	cuerpoCeleste[4] = { 525.0f,35.0f,0.0f,10.0f,0.0f,40.0f, 0, 0, 0, NULL, 4 }; // Marte
-	cuerpoCeleste[5] = { 600.0f,45.0f,0.0f,10.0f,0.0f,40.0f, 0, 0, 0, NULL, 5 }; // Jupiter
-	cuerpoCeleste[6] = { 700.0f,50.0f,0.0f,10.0f,0.0f,45.0f, 0, 0, 0, NULL, 6 }; // Saturno
-	cuerpoCeleste[7] = { 800.0f,55.0f,0,10.0f,0.0f,55.0f, 0, 0, 0, NULL, 7 }; // Urano
-	cuerpoCeleste[8] = { 900.0f,60.0f,0.0f,10.0f,0.0f,60.0f, 0, 0, 0, NULL, 8 }; // Neptuno
+	cuerpoCeleste[0] = { 0.0f,0.0f,0.0f,10.0f,0.0f,75.0f,{0,0,0}, 0, 0, NULL, 0}; // Sol
+	cuerpoCeleste[1] = { 150.0f,30.0f,0,50.0f,0.0f,25.0f,{0,0,0}, 0, 0, NULL, 1 }; // Mercurio
+	cuerpoCeleste[2] = { 250.0f,25.0f,0.0f,30.0f,0.0f,30.0f,{0,0,0}, 0, 0, NULL, 2 }; // Venus
+	cuerpoCeleste[3] = { 400.0f,20.0f,0.0f,10.0f,0.0f,40.0f,{0,0,0}, 0, 2, NULL, 3 }; // Tierra
+	cuerpoCeleste[4] = { 525.0f,35.0f,0.0f,10.0f,0.0f,40.0f,{0,0,0}, 0, 0, NULL, 4 }; // Marte
+	cuerpoCeleste[5] = { 600.0f,45.0f,0.0f,10.0f,0.0f,40.0f,{0,0,0}, 0, 0, NULL, 5 }; // Jupiter
+	cuerpoCeleste[6] = { 700.0f,50.0f,0.0f,10.0f,0.0f,45.0f,{0,0,0}, 0, 0, NULL, 6 }; // Saturno
+	cuerpoCeleste[7] = { 800.0f,55.0f,0,10.0f,0.0f,55.0f,{0,0,0}, 0, 0, NULL, 7 }; // Urano
+	cuerpoCeleste[8] = { 900.0f,60.0f,0.0f,10.0f,0.0f,60.0f,{0,0,0}, 0, 0, NULL, 8 }; // Neptuno
 
 	// Satelites de la tierra
 	cuerpoCeleste[3].satelites = (planeta*)malloc(cuerpoCeleste[3].numSatelites * sizeof(planeta));
-	cuerpoCeleste[3].satelites[0] = { 100.0f,100.0f,0.0f,20.0f,0.0f,15.0f,0, 0, 0, NULL, 9 }; // Luna
-	cuerpoCeleste[3].satelites[1] = { 70.0f,100,0.0f,5.0f,0.0f,5.0f,0, 0, 0, NULL, 10 }; // ISS 
+	cuerpoCeleste[3].satelites[0] = { 100.0f,100.0f,0.0f,20.0f,0.0f,15.0f,{0,0,0}, 0, 0, NULL, 9 }; // Luna
+	cuerpoCeleste[3].satelites[1] = { 70.0f,200,0.0f,20.0f,0.0f,5.0f,{0,0,0}, 0, 0, NULL, 10 }; // ISS 
 
 
 	// glfw: initialize and configure
@@ -513,21 +535,20 @@ int main() {
 	inicializarVAOS(); //Inicializamos los VAOs
 	glEnable(GL_DEPTH_TEST);
 
-	// Cargamos las texturas
-	CargaTexturas("sol.png", cuerpoCeleste[0].textura);
-	CargaTexturas("mercurio.jpg", cuerpoCeleste[1].textura);
-	CargaTexturas("venus.jpg", cuerpoCeleste[2].textura);
-	CargaTexturas("tierra.png", cuerpoCeleste[3].textura);
-	CargaTexturas("marte.jpg", cuerpoCeleste[4].textura);
-	CargaTexturas("jupiter.jpg", cuerpoCeleste[5].textura);
-	CargaTexturas("saturno.jpg", cuerpoCeleste[6].textura);
-	CargaTexturas("urano.jpg", cuerpoCeleste[7].textura);
-	CargaTexturas("neptuno.jpg", cuerpoCeleste[8].textura);
-	CargaTexturas("luna.png", cuerpoCeleste[3].satelites[0].textura);
-	CargaTexturas("ISS2.png", cuerpoCeleste[3].satelites[1].textura);
+	CargaTexturas("sol.png", 0);
+	CargaTexturas("mercurio.jpg", 1);
+	CargaTexturas("venus.jpg", 2);
+	CargaTexturas("tierra.png", 3);
+	CargaTexturas("marte.jpg", 4);
+	CargaTexturas("jupiter.jpg", 5);
+	CargaTexturas("saturno.jpg", 6);
+	CargaTexturas("urano.jpg", 7);
+	CargaTexturas("neptuno.jpg", 8);
+	CargaTexturas("luna.png", 9);
+	CargaTexturas("ISS.jpg", 10);
 
 	
-	glUseProgram(shaderProgram); // Usamos el Shadder
+	glUseProgram(shaderProgram); // Usamos el shader
 	glUniform1i(glGetUniformLocation(shaderProgram, "texture1"), 0);
 	// Lazo de la ventana mientras no la cierre
 	while (!glfwWindowShouldClose(window)) {
@@ -568,10 +589,6 @@ void processInput(GLFWwindow *window) {
 		camara = 3;
 	if (glfwGetKey(window, GLFW_KEY_4) == GLFW_PRESS) // Ver la tierra desde la ISS
 		camara = 4;
-	if (glfwGetKey(window, GLFW_KEY_5) == GLFW_PRESS) // Ver la tierra desde la ISS
-		solEncendido = false;
-	if (glfwGetKey(window, GLFW_KEY_6) == GLFW_PRESS) // Ver la tierra desde la ISS
-		solEncendido = true;
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
